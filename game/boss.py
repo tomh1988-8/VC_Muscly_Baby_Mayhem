@@ -15,7 +15,7 @@ class Boss(pygame.sprite.Sprite):
         self.height = 200
         self.base_width = self.width  # Store original size for scaling
         self.base_height = self.height
-        self.health = 25  # Boss needs 25 hits to defeat (was 5)
+        self.health = 25  # Boss needs exactly 25 hits to defeat
         self.hits_taken = 0
 
         # Contact damage cooldown
@@ -90,7 +90,7 @@ class Boss(pygame.sprite.Sprite):
             self.hit_sound = None
             self.jump_sound = None
 
-    def update(self, player):
+    def update(self, platforms, player):
         """Update boss behavior"""
         # Update timer
         self.animation_timer += 1
@@ -205,9 +205,9 @@ class Boss(pygame.sprite.Sprite):
         if self.on_ground and self.jump_cooldown <= 0 and random.random() < 0.06:
             self._jump()
 
-    def take_damage(self):
+    def take_damage(self, damage=1):
         """Boss takes damage and grows stronger"""
-        self.health -= 1
+        self.health -= damage
         self.hits_taken += 1
 
         # Grow in size by 2%
@@ -250,7 +250,7 @@ class Boss(pygame.sprite.Sprite):
         pygame.draw.rect(screen, (200, 0, 0), (bar_x, bar_y, bar_width, bar_height))
 
         # Foreground (green) - proportional to health
-        health_percent = max(0, self.health / 25)
+        health_percent = max(0, self.health / 25)  # Exactly 25 health max
         pygame.draw.rect(
             screen,
             (0, 200, 0),
@@ -260,7 +260,7 @@ class Boss(pygame.sprite.Sprite):
         # Border
         pygame.draw.rect(screen, (0, 0, 0), (bar_x, bar_y, bar_width, bar_height), 2)
 
-        # Text
+        # Text - show X/25 shots
         font = pygame.font.SysFont("Arial", 18)
         text = font.render(f"Boss Health: {self.health}/25", True, (255, 255, 255))
         screen.blit(text, (bar_x + 10, bar_y + (bar_height - text.get_height()) // 2))

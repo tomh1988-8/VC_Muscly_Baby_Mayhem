@@ -33,7 +33,7 @@ class BossLevel:
         # Load boss level background
         try:
             self.background_image = pygame.image.load(
-                "assets/images/boss_background.png"
+                "assets/images/background_boss_level.jpg"
             ).convert()
             self.background_image = pygame.transform.scale(
                 self.background_image, (self.screen_width, self.screen_height)
@@ -68,9 +68,16 @@ class BossLevel:
         self.player.health = player_health
         print(f"Player starting boss level with health: {self.player.health}")
 
-        # Double the player's jump power for the boss level
-        self.player.jump_power *= 2
-        print(f"Player jump power doubled for boss level: {self.player.jump_power}")
+        # Calculate jump power to reach approximately 40% of the screen height
+        # The physics formula is: max_jump_height = (jump_power^2) / (2 * gravity)
+        # So: jump_power = sqrt(2 * gravity * desired_max_jump_height)
+        desired_max_jump_height = self.screen_height * 0.4
+        self.player.jump_power = math.sqrt(
+            2 * self.player.gravity * desired_max_jump_height
+        )
+        print(
+            f"Player jump power set to reach ~40% of screen height: {self.player.jump_power}"
+        )
 
         # Ensure player health doesn't exceed maximum
         if self.player.health > self.player.max_health:
@@ -129,18 +136,50 @@ class BossLevel:
         )
         self.platforms.add(ground)
 
-        # Add some floating platforms for the player to jump on
-        platform_positions = [
-            (self.screen_width // 4, self.level_height - 200, 150, 20),
-            (self.screen_width // 2, self.level_height - 300, 150, 20),
-            (self.screen_width * 3 // 4, self.level_height - 200, 150, 20),
-            (self.screen_width // 8, self.level_height - 400, 100, 20),
-            (self.screen_width * 7 // 8, self.level_height - 400, 100, 20),
-        ]
+        # Add two randomly placed small platforms
+        platform_width = 100
+        platform_height = 20
 
+        # Generate positions for two platforms that aren't too close to each other
+        platforms_added = 0
+        attempts = 0
+        min_distance = 200  # Minimum distance between platforms
+
+        platform_positions = []
+
+        # Keep trying until we have 2 platforms or too many attempts
+        while platforms_added < 2 and attempts < 50:
+            attempts += 1
+
+            # Generate random position that's not too close to edges
+            x = random.randint(platform_width, self.screen_width - platform_width)
+            y = random.randint(self.screen_height // 2, self.screen_height - 150)
+
+            # Check if it's far enough from existing platforms
+            too_close = False
+            for pos in platform_positions:
+                distance = math.sqrt((pos[0] - x) ** 2 + (pos[1] - y) ** 2)
+                if distance < min_distance:
+                    too_close = True
+                    break
+
+            # If valid position, add it
+            if not too_close:
+                platform_positions.append((x, y))
+                platforms_added += 1
+
+        # Create the two platforms
         for pos in platform_positions:
-            platform = Platform(pos[0], pos[1], pos[2], pos[3], color=(150, 50, 50))
+            platform = Platform(
+                pos[0]
+                - platform_width // 2,  # Center the platform at the generated position
+                pos[1],
+                platform_width,
+                platform_height,
+                color=(150, 50, 50),
+            )
             self.platforms.add(platform)
+            print(f"Added small platform at ({pos[0]}, {pos[1]})")
 
     def _create_victory_sequence(self):
         """Create victory stairs and place champion belt when boss is defeated"""
@@ -232,43 +271,42 @@ class BossLevel:
         )
 
         if player_died:
-            return False  # Player died - return False
+            return False  # Player died
 
-        # If boss is alive, update boss and check for boss defeat
+        # Update boss if it's still alive
         if not self.boss_defeated:
-            # Update boss
-            self.boss.update(self.player)
+            # Update boss state and check if player defeats it
+            boss_rect = self.boss.rect  # Save before updating
+            self.boss.update(self.platforms, self.player)
 
-            # Check for bullet collisions with boss
+            # Check for player bullet hits on boss
             for bullet in self.player.bullets:
                 if bullet.rect.colliderect(self.boss.rect):
                     bullet.kill()  # Remove bullet
-                    self.boss.take_damage()  # Boss takes damage
-                    self.score += 100  # Add score
+                    self.boss.take_damage(
+                        1
+                    )  # Each hit does just 1 damage (takes 25 shots as requested)
+                    self.score += 25  # Score for hitting boss
 
-                    # Check if boss is defeated
-                    if self.boss.health <= 0:
-                        self.boss_defeated = True
-                        # Create victory sequence with stairs and champion belt
-                        self._create_victory_sequence()
-                        if self.victory_sound:
-                            self.victory_sound.play()
+            # Check if boss is defeated
+            if self.boss.health <= 0 and not self.boss_defeated:
+                self.boss_defeated = True
+                print("Boss defeated! Creating victory sequence!")
+
+                # Create stairs and place champion belt
+                self._create_victory_sequence()
+
+                # Play victory sound
+                if self.victory_sound:
+                    self.victory_sound.play()
+
         # If boss is defeated, check if player reaches the champion belt
-        elif self.champ_belt_rect and self.player.rect.colliderect(
-            self.champ_belt_rect
-        ):
-            self.completed = True
-            # Stop boss music
-            if self.boss_music:
-                self.boss_music.stop()
-            print("Player got the champion belt! Game complete!")
-            return True  # Level completed - return True
+        if self.boss_defeated and self.champ_belt_rect:
+            if self.player.rect.colliderect(self.champ_belt_rect):
+                self.completed = True
+                return True  # Level completed
 
-        # Update score from player's score
-        self.score += self.player.score
-        self.player.score = 0
-
-        # If we reach here, the game is still ongoing
+        # Always return None if the game is still in progress
         return None  # Game still in progress
 
     def render(self, screen):
