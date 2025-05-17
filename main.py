@@ -515,7 +515,7 @@ class Game:
                 )
 
                 # Add John Cena victory message
-                cena_text = "YOU CAN'T SEE ME! John Cena has been defeated!"
+                cena_text = "Champ life ain't easy!"
                 cena_y = title_y + 85
                 font_cena = pygame.font.SysFont("comicsans", 40)
 

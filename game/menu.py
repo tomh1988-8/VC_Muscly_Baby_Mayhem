@@ -353,13 +353,12 @@ class Menu:
         # Draw subtitle with shadow
         subtitle_position = (
             self.width // 2
-            - self.description_font.size("The adventures of a very strong infant")[0]
-            // 2,
+            - self.description_font.size("The adventures of chungus humungus")[0] // 2,
             self.title_y + 100,
         )
         self.render_text_with_shadow(
             screen,
-            "The adventures of a very strong infant",
+            "The adventures of chungus humungus",
             self.description_font,
             (100, 50, 150),
             subtitle_position,
