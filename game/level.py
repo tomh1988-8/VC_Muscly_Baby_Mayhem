@@ -318,9 +318,13 @@ class Level:
 
     def _generate_platforms(self):
         """Generate platforms for a long side-scrolling level"""
-        # Ground platform - spans the entire level
+        # Create a continuous ground platform, but we'll add holes later
         ground = Platform(0, self.level_height - 50, self.level_width, 50)
         self.platforms.add(ground)
+
+        # Create deadly holes in the ground (only for non-boss levels)
+        self.deadly_holes = []
+        self._create_deadly_holes()
 
         # Player jump height calculation
         max_jump_height = (self.player.jump_power**2) / (2 * self.player.gravity)
@@ -513,6 +517,60 @@ class Level:
             )
             self.platforms.add(final_platform)
 
+    def _create_deadly_holes(self):
+        """Create two deadly holes in the ground platform"""
+        ground_y = self.level_height - 50  # Ground platform Y position
+        hole_width = 120  # Width of each deadly hole
+
+        # Store the original ground platform
+        original_ground = None
+        for platform in self.platforms:
+            if platform.rect.y == ground_y and platform.rect.width == self.level_width:
+                original_ground = platform
+                self.platforms.remove(platform)
+                break
+
+        if not original_ground:
+            print("Error: Couldn't find ground platform to add holes")
+            return
+
+        # Determine hole positions - avoid placing them too close to start, goal, or each other
+        level_division = self.level_width / 5  # Divide level into 5 sections
+
+        # First hole in the 2nd section (20-40% of level width)
+        hole1_x = random.randint(int(level_division * 1.2), int(level_division * 1.8))
+
+        # Second hole in the 4th section (60-80% of level width)
+        hole2_x = random.randint(int(level_division * 3.2), int(level_division * 3.8))
+
+        # Store hole rectangles for collision detection
+        self.deadly_holes = [
+            pygame.Rect(hole1_x, ground_y, hole_width, 100),  # Make hole deep
+            pygame.Rect(hole2_x, ground_y, hole_width, 100),
+        ]
+
+        # Create three ground sections instead of one continuous ground
+        # 1. Left section (from start to hole1)
+        if hole1_x > 0:
+            left_ground = Platform(0, ground_y, hole1_x, 50)
+            self.platforms.add(left_ground)
+
+        # 2. Middle section (between hole1 and hole2)
+        middle_x = hole1_x + hole_width
+        middle_width = hole2_x - middle_x
+        if middle_width > 0:
+            middle_ground = Platform(middle_x, ground_y, middle_width, 50)
+            self.platforms.add(middle_ground)
+
+        # 3. Right section (from hole2 to end)
+        right_x = hole2_x + hole_width
+        right_width = self.level_width - right_x
+        if right_width > 0:
+            right_ground = Platform(right_x, ground_y, right_width, 50)
+            self.platforms.add(right_ground)
+
+        print(f"Created deadly holes at x positions: {hole1_x} and {hole2_x}")
+
     def _spawn_enemy(self):
         """Spawn an enemy at a random location visible on screen"""
         # Choose a platform to spawn on (not the ground) that's visible on screen
@@ -680,6 +738,14 @@ class Level:
         if player_died:
             return False  # Player died - return False
 
+        # Check if player has fallen into a deadly hole
+        for hole in self.deadly_holes:
+            if self.player.rect.colliderect(hole):
+                print("Player fell into a deadly hole!")
+                # Kill the player
+                self.player.health = 0
+                return False  # Player died - return False
+
         # Update camera position to follow player
         self._update_camera()
 
@@ -770,6 +836,38 @@ class Level:
 
                 # Draw the platform
                 screen.blit(platform.image, screen_rect)
+
+        # Draw holes in the ground (like deep pits)
+        for hole in self.deadly_holes:
+            hole_screen_x, hole_screen_y = self._get_screen_position(hole.x, hole.y)
+
+            # Only draw if visible on screen
+            if (
+                -hole.width <= hole_screen_x <= self.screen_width
+                and -hole.height <= hole_screen_y <= self.screen_height
+            ):
+                # Draw a dark pit as the hole
+                hole_color = (10, 10, 10)  # Very dark (almost black) color
+
+                # Draw the main hole
+                pygame.draw.rect(
+                    screen,
+                    hole_color,
+                    pygame.Rect(hole_screen_x, hole_screen_y, hole.width, hole.height),
+                )
+
+                # Add some depth with a gradient
+                for i in range(3):
+                    depth = 5 + (i * 3)  # Increasing line thickness
+                    line_y = hole_screen_y + (i * 10)
+                    line_color = (20 + (i * 10), 20 + (i * 5), 20)  # Gradually lighter
+                    pygame.draw.line(
+                        screen,
+                        line_color,
+                        (hole_screen_x, line_y),
+                        (hole_screen_x + hole.width, line_y),
+                        depth,
+                    )
 
         # Draw goal flag if visible on screen
         goal_screen_x, goal_screen_y = self._get_screen_position(

@@ -1,6 +1,7 @@
 import pygame
 import sys
 import os
+import math
 from game.player import Player
 from game.level import Level
 from game.menu import Menu
@@ -94,16 +95,22 @@ class Game:
                 "Defeated by vegetables? That's not very muscly of you!",
                 "Baby down! Those carrots were tougher than they looked!",
                 "Looks like someone needs to eat more vegetables, not fight them!",
+                "Whoops! You fell into a hole in the clouds! Gravity wins again!",
+                "That's one small step for baby, one giant fall through the clouds!",
             ],
             2: [
                 "Slipped on a banana peel? Classic!",
                 "That's bananas! You got peeled!",
                 "Looks like those bananas split you instead!",
+                "You found the quicksand pit in the jungle! Not the treasure you were hoping for!",
+                "Tarzan would've swung over that hole! Try again, jungle baby!",
             ],
             3: [
                 "Grandma power too strong! Those knitting needles are lethal!",
                 "You've been baked into a cookie by grandma!",
                 "Beaten by the blue rinse brigade!",
+                "Watch out for that broken tile in aisle 5! Store liability incoming!",
+                "You fell into the discount bin! Everything must go... including you!",
             ],
         }
         # To store the selected death message
@@ -166,6 +173,15 @@ class Game:
             environments[level_number],
             enemies[level_number],
             player_health=self.player_health,  # Pass current health to the level
+        )
+
+        # Set the player's jump height to 30% of the screen height for non-boss levels
+        desired_jump_height = SCREEN_HEIGHT * 0.3  # 30% of screen height
+        self.level.player.jump_power = math.sqrt(
+            2 * self.level.player.gravity * desired_jump_height
+        )
+        print(
+            f"Player jump power set to reach 30% of screen height: {self.level.player.jump_power}"
         )
 
         self.state = PLAYING
@@ -409,7 +425,7 @@ class Game:
                 # Show game over message
                 font = pygame.font.SysFont("comicsans", 70)
                 death_title = "BABY DOWN!"
-                title_y = SCREEN_HEIGHT // 3
+                title_y = SCREEN_HEIGHT // 3 - 30  # Moved 30px higher
 
                 render_text_with_shadow(
                     screen,
@@ -423,7 +439,7 @@ class Game:
 
                 # Show funny death message
                 font = pygame.font.SysFont("comicsans", 40)
-                message_y = title_y + 120
+                message_y = title_y + 180  # Increased from 150 to 180
 
                 # Split long messages across multiple lines if needed
                 if len(self.current_death_message) > 40:
@@ -471,7 +487,7 @@ class Game:
 
                 # Show score
                 score_text = f"Score: {self.score + self.level.score}"
-                score_y = message_y + 80
+                score_y = message_y + 130  # Increased from 100 to 130
                 render_text_with_shadow(
                     screen,
                     score_text,
@@ -483,7 +499,7 @@ class Game:
 
                 # Continue prompt
                 prompt_text = "Press ENTER to return to menu"
-                prompt_y = score_y + 80
+                prompt_y = score_y + 130  # Increased from 100 to 130
                 render_text_with_shadow(
                     screen,
                     prompt_text,
