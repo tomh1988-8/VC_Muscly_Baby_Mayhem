@@ -148,6 +148,17 @@ class Level:
         self.enemy_spawn_delay = (
             96  # Reduced by 20% from 120 (was 2s, now 1.6s at 60 FPS)
         )
+        # Track player's progression through the level to adjust spawn rate
+        self.spawn_rate_adjustment = 1.0
+        self.last_spawn_position_x = 0
+        # Maximum number of enemies to have on screen at once
+        self.max_enemies = 5
+        # Flag to track if the main enemy has been spawned for this level
+        self.main_enemy_spawned = False
+        # Track when to spawn the main enemy (after player progresses a bit into the level)
+        self.main_enemy_spawn_progress = random.uniform(
+            0.3, 0.7
+        )  # Spawn between 30-70% of level progress
 
         # Background color based on environment (used as fallback)
         self.bg_colors = {
@@ -516,7 +527,37 @@ class Level:
         if not visible_platforms:
             return
 
-        platform = random.choice(visible_platforms)
+        # Sort platforms by width to find the largest one for the main enemy
+        sorted_platforms = sorted(
+            visible_platforms, key=lambda p: p.rect.width, reverse=True
+        )
+
+        # Determine if this should be a main enemy
+        # Only spawn a main enemy if we haven't spawned one yet
+        # AND player has progressed far enough into the level
+        level_progress = min(1.0, max(0.0, self.player.rect.x / self.level_width))
+
+        is_main_enemy = False
+        if (
+            not self.main_enemy_spawned
+            and level_progress >= self.main_enemy_spawn_progress
+        ):
+            is_main_enemy = True
+            # Use the largest platform available
+            platform = sorted_platforms[0]
+            # Mark that we've spawned the main enemy
+            self.main_enemy_spawned = True
+            print(f"SPAWNING MAIN ENEMY at {level_progress * 100:.1f}% level progress")
+        else:
+            # Regular enemy - choose a random platform
+            platform = random.choice(visible_platforms)
+
+        # Make sure the platform is large enough for a main enemy
+        if is_main_enemy:
+            min_platform_width = 180  # 2x normal enemy width
+            if platform.rect.width < min_platform_width:
+                # Platform too small, wait for a better opportunity
+                return
 
         # Enemy size based on type - increased by 30%
         if self.enemy_type == "vegetables":
@@ -527,6 +568,11 @@ class Level:
             width, height = 91, 117  # Was 70x90 originally
         else:
             width, height = 78, 78  # Was 60x60 originally
+
+        # Double size for main enemies
+        if is_main_enemy:
+            width *= 2
+            height *= 2
 
         # Check if platform is wide enough for enemy
         if platform.rect.width <= width:
@@ -545,12 +591,21 @@ class Level:
 
         y = platform.rect.top - height  # Place on top of platform
 
+        # Remember where we last spawned an enemy
+        self.last_spawn_position_x = x
+
         # Create enemy based on level
-        enemy = Enemy(x, y, self.enemy_type, self.level_number)
+        enemy = Enemy(x, y, self.enemy_type, self.level_number, is_main=is_main_enemy)
         # Adjust size
         enemy.width = width
         enemy.height = height
         self.enemies.add(enemy)
+
+        # Log the spawn
+        if is_main_enemy:
+            print(f"Spawned MAIN {self.enemy_type} enemy at ({x}, {y})")
+        else:
+            print(f"Spawned regular {self.enemy_type} enemy at ({x}, {y})")
 
     def update(self):
         """Update level state"""
@@ -558,9 +613,37 @@ class Level:
         self.timer += 1
         self.goal_animation_timer += 1
 
+        # Calculate player's progression through the level (0.0 to 1.0)
+        level_progress = min(1.0, max(0.0, self.player.rect.x / self.level_width))
+
+        # Adjust spawn rate based on player's progression
+        # At the start, normal rate (1.0)
+        # In the middle, slightly increased rate (0.8)
+        # Near the end, significantly increased rate (0.6)
+        if level_progress < 0.3:
+            self.spawn_rate_adjustment = 1.0
+        elif level_progress < 0.7:
+            self.spawn_rate_adjustment = 0.8
+        else:
+            self.spawn_rate_adjustment = 0.6
+
+        # Adjust max enemies based on progression
+        if level_progress < 0.3:
+            self.max_enemies = 4
+        elif level_progress < 0.7:
+            self.max_enemies = 5
+        else:
+            self.max_enemies = 6
+
+        # Apply spawn rate adjustment
+        adjusted_spawn_delay = int(self.enemy_spawn_delay * self.spawn_rate_adjustment)
+
         # Handle enemy spawning
         self.enemy_spawn_timer += 1
-        if self.enemy_spawn_timer >= self.enemy_spawn_delay and len(self.enemies) < 5:
+        if (
+            self.enemy_spawn_timer >= adjusted_spawn_delay
+            and len(self.enemies) < self.max_enemies
+        ):
             self._spawn_enemy()
             self.enemy_spawn_timer = 0
 
@@ -732,6 +815,8 @@ class Level:
 
                 # Foreground (green) - proportional to health
                 max_health = 50 + (enemy.level * 25)
+                if hasattr(enemy, "is_main") and enemy.is_main:
+                    max_health *= 2
                 health_percent = max(0, enemy.health / max_health)
                 pygame.draw.rect(
                     screen,
@@ -743,6 +828,32 @@ class Level:
                         health_height,
                     ),
                 )
+
+                # For main enemies, draw their projectiles if they have any
+                if (
+                    hasattr(enemy, "is_main")
+                    and enemy.is_main
+                    and hasattr(enemy, "projectiles")
+                ):
+                    for projectile in enemy.projectiles:
+                        proj_screen_x, proj_screen_y = self._get_screen_position(
+                            projectile.rect.x, projectile.rect.y
+                        )
+
+                        # Only draw projectiles visible on screen
+                        if (
+                            -projectile.rect.width <= proj_screen_x <= self.screen_width
+                            and -projectile.rect.height
+                            <= proj_screen_y
+                            <= self.screen_height
+                        ):
+                            # Create temporary rect for drawing
+                            proj_screen_rect = projectile.rect.copy()
+                            proj_screen_rect.x = proj_screen_x
+                            proj_screen_rect.y = proj_screen_y
+
+                            # Draw the projectile
+                            screen.blit(projectile.image, proj_screen_rect)
 
         # Draw player adjusted for camera
         player_screen_x, player_screen_y = self._get_screen_position(

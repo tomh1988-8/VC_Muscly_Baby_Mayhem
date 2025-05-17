@@ -232,7 +232,9 @@ class Player(pygame.sprite.Sprite):
         # Check for direct collisions with enemies
         hits = pygame.sprite.spritecollide(self, enemies, False)
         for enemy in hits:
-            self.take_damage(1)  # Reduced enemy contact damage from 5 to 1
+            self.take_damage(
+                enemy.contact_damage if hasattr(enemy, "contact_damage") else 1
+            )  # Use enemy's contact_damage value
 
     def take_damage(self, amount):
         """Reduce player health"""
