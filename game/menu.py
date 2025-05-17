@@ -8,11 +8,17 @@ class Menu:
         self.width = width
         self.height = height
         self.selected_option = 0
-        self.options = ["Start Game", "Instructions", "Quit"]
+        self.options = [
+            "Start Game",
+            "Instructions",
+        ]  # Removed "Quit" from main options
         self.title_font = pygame.font.SysFont("comicsans", 80, bold=True)
         self.option_font = pygame.font.SysFont("comicsans", 50)
         self.description_font = pygame.font.SysFont("comicsans", 30)
         self.controls_font = pygame.font.SysFont("comicsans", 22)
+
+        # Variables for quit button highlighting
+        self.quit_highlighted = False
 
         # Title bounce animation
         self.title_y = height // 6
@@ -110,6 +116,10 @@ class Menu:
                     self.last_key_time = current_time
                     if self.select_sound:
                         self.select_sound.play()
+                # Add escape key to quit
+                elif keys[pygame.K_ESCAPE]:
+                    pygame.event.post(pygame.event.Event(pygame.QUIT))
+                    self.last_key_time = current_time
 
         # Simple title bounce animation
         self.title_y += self.bounce_direction * self.bounce_speed
@@ -151,18 +161,30 @@ class Menu:
                 return False
 
             # Check if any menu option was clicked
-            panel_height = 220  # Increased height for better spacing (was 180)
+            panel_height = 270  # Further increased height for better spacing
             panel_y = self.height - panel_height - 20
-            panel_width = self.width // 2
-            panel_x = self.width // 4
+
+            # Calculate option heights for positioning - same as in render method
+            option_heights = [
+                self.option_font.size(option)[1] for option in self.options
+            ]
+
+            # Calculate starting position - same as in render method
+            total_content_height = sum(option_heights) + 40
+            starting_y = panel_y + (panel_height - total_content_height) // 2
 
             for i, option in enumerate(self.options):
                 option_width = self.option_font.size(option)[0]
                 option_height = self.option_font.size(option)[1]
                 option_x = self.width // 2 - option_width // 2
-                option_y = (
-                    panel_y + 20 + i * (option_height + 30)
-                )  # Padding between options in pixels (was 15)
+
+                # Calculate position - same logic as in render method
+                if i == 0:
+                    option_y = starting_y
+                else:
+                    option_y = (
+                        starting_y + sum(option_heights[:i]) + (i * 20)
+                    )  # 20px gap between options
 
                 option_rect = pygame.Rect(
                     option_x, option_y, option_width, option_height
@@ -172,11 +194,33 @@ class Menu:
                     if option == "Instructions":
                         self.show_instructions = True
                         return False
-                    elif (
-                        self.options[self.selected_option] == "Start Game"
-                        or self.options[self.selected_option] == "Quit"
-                    ):
-                        return True  # Return True if Start Game or Quit was selected
+                    elif self.options[self.selected_option] == "Start Game":
+                        return "start_game"  # Return "start_game" instead of True
+
+            # Check if Quit button was clicked
+            quit_font = pygame.font.SysFont("comicsans", 40)
+            quit_text = "Quit"
+            quit_width = quit_font.size(quit_text)[0] + 20
+            quit_height = quit_font.size(quit_text)[1] + 10
+            quit_x = self.width - quit_width - 20
+            quit_y = self.height - quit_height - 20
+
+            quit_rect = pygame.Rect(quit_x, quit_y, quit_width, quit_height)
+            if quit_rect.collidepoint(event.pos):
+                return "quit"  # Return "quit" instead of True
+
+        # Update hover state for quit button
+        elif event.type == pygame.MOUSEMOTION:
+            # Calculate quit button rect
+            quit_font = pygame.font.SysFont("comicsans", 40)
+            quit_text = "Quit"
+            quit_width = quit_font.size(quit_text)[0] + 20
+            quit_height = quit_font.size(quit_text)[1] + 10
+            quit_x = self.width - quit_width - 20
+            quit_y = self.height - quit_height - 20
+
+            quit_rect = pygame.Rect(quit_x, quit_y, quit_width, quit_height)
+            self.quit_highlighted = quit_rect.collidepoint(event.pos)
 
         return False  # No option was selected
 
@@ -323,16 +367,22 @@ class Menu:
         )
 
         # Create a semi-transparent panel for menu options
-        panel_height = 220  # Increased height for better spacing (was 180)
+        panel_height = 270  # Further increased height for better spacing
         panel_y = self.height - panel_height - 20
         panel = pygame.Surface((self.width // 2, panel_height), pygame.SRCALPHA)
         panel.fill((0, 0, 0, 120))  # Semi-transparent black
         panel_x = self.width // 4
         screen.blit(panel, (panel_x, panel_y))
 
-        # Draw menu options with increased spacing
-        y_offset = panel_y + 20
-        option_padding = 30  # Padding between options in pixels (was 15)
+        # Draw menu options with fixed positions
+        # Calculate option heights for positioning
+        option_heights = [self.option_font.size(option)[1] for option in self.options]
+
+        # Calculate starting position to center options in panel
+        total_content_height = sum(option_heights) + 40  # 20px gap between each option
+        starting_y = panel_y + (panel_height - total_content_height) // 2
+
+        # Draw each option at its explicit position
         for i, option in enumerate(self.options):
             if i == self.selected_option:
                 color = (255, 0, 0)  # Red for selected
@@ -341,15 +391,22 @@ class Menu:
                 color = (0, 0, 0)  # Black for unselected
                 bg_color = (200, 200, 200, 120)  # Regular background
 
+            # Calculate position - first option at starting_y, others positioned below with 20px gaps
+            if i == 0:
+                option_y = starting_y
+            else:
+                option_y = (
+                    starting_y + sum(option_heights[:i]) + (i * 20)
+                )  # 20px gap between options
+
             option_pos = (
                 self.width // 2 - self.option_font.size(option)[0] // 2,
-                y_offset,
+                option_y,
             )
+
             self.render_text_with_shadow(
                 screen, option, self.option_font, color, option_pos, bg_color=bg_color
             )
-            # Add height of text plus padding
-            y_offset += self.option_font.size(option)[1] + option_padding
 
         # Draw controls instructions - moved further down
         instructions = "Press ENTER to select"
@@ -364,6 +421,43 @@ class Menu:
             (0, 0, 0),
             instruction_pos,
             bg_color=(255, 255, 255, 180),
+        )
+
+        # Draw Quit button in bottom right
+        quit_text = "Quit"
+        quit_font = pygame.font.SysFont("comicsans", 40)
+        # Determine button size with padding
+        quit_width = quit_font.size(quit_text)[0] + 20
+        quit_height = quit_font.size(quit_text)[1] + 10
+        quit_x = self.width - quit_width - 20  # 20px from right edge
+        quit_y = self.height - quit_height - 20  # 20px from bottom edge
+
+        # Draw button background with different color if highlighted
+        quit_bg_color = (
+            (200, 50, 50, 220) if self.quit_highlighted else (150, 50, 50, 180)
+        )
+
+        # Create button background
+        quit_bg = pygame.Surface((quit_width, quit_height), pygame.SRCALPHA)
+        quit_bg.fill(quit_bg_color)
+        screen.blit(quit_bg, (quit_x, quit_y))
+
+        # Draw button border
+        pygame.draw.rect(
+            screen, (0, 0, 0), (quit_x, quit_y, quit_width, quit_height), 2
+        )
+
+        # Draw quit text
+        quit_text_pos = (
+            quit_x + (quit_width - quit_font.size(quit_text)[0]) // 2,
+            quit_y + (quit_height - quit_font.size(quit_text)[1]) // 2,
+        )
+        self.render_text_with_shadow(
+            screen,
+            quit_text,
+            quit_font,
+            (255, 255, 255),
+            quit_text_pos,
         )
 
         # Draw instructions popup if enabled

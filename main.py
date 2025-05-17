@@ -277,24 +277,20 @@ class Game:
                                     # Reset player health to 500 when starting a new game
                                     self.player_health = 500
                                     self.start_level(1)
-                                elif (
-                                    self.menu.options[self.menu.selected_option]
-                                    == "Quit"
-                                ):
-                                    running = False
+                                # Quit option has been moved to bottom right as a separate button
                             else:
                                 # If instructions are showing, close them
                                 self.menu.show_instructions = False
 
                     # Check for menu mouse events
                     selected = self.menu.handle_event(event)
-                    if selected:
-                        if self.menu.options[self.menu.selected_option] == "Start Game":
-                            # Reset player health to 500 when starting a new game
-                            self.player_health = 500
-                            self.start_level(1)
-                        elif self.menu.options[self.menu.selected_option] == "Quit":
-                            running = False
+                    if selected == "start_game":
+                        # Reset player health to 500 when starting a new game
+                        self.player_health = 500
+                        self.start_level(1)
+                    elif selected == "quit":
+                        # Quit the game
+                        running = False
 
                 # Level completion
                 elif self.state == LEVEL_COMPLETE:
