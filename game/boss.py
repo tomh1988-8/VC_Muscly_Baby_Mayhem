@@ -210,8 +210,8 @@ class Boss(pygame.sprite.Sprite):
         self.health -= damage
         self.hits_taken += 1
 
-        # Grow in size by 2%
-        growth_factor = 1 + (0.02 * self.hits_taken)
+        # Grow in size by 5%
+        growth_factor = 1 + (0.05 * self.hits_taken)
         self.width = int(self.base_width * growth_factor)
         self.height = int(self.base_height * growth_factor)
 
@@ -225,8 +225,8 @@ class Boss(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = old_center
 
-        # Increase speed by 2%
-        self.speed = self.base_speed * (1 + (0.02 * self.hits_taken))
+        # Increase speed by 5%
+        self.speed = self.base_speed * (1 + (0.05 * self.hits_taken))
 
         # Increase jump power slightly
         self.jump_power = 15 * (1 + (0.01 * self.hits_taken))
