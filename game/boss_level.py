@@ -255,14 +255,12 @@ class BossLevel:
         if keys[pygame.K_UP]:
             self.player.jump()
 
-        # Shooting controls
+        # Shooting controls - A shoots left, D shoots right
         if keys[pygame.K_a]:  # A key for shooting left
             self.player.set_shoot_direction(False)
+            self.player.shoot()
         elif keys[pygame.K_d]:  # D key for shooting right
             self.player.set_shoot_direction(True)
-
-        # Shoot when space is pressed
-        if keys[pygame.K_SPACE]:
             self.player.shoot()
 
         # Update player
